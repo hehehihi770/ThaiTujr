@@ -1,0 +1,1126 @@
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║        🌟 VIP MENU - BLOX FRUIT  |  Version 3.0  🌟        ║
+-- ║  Tab 1: Server Hop | Tab 2: Speed/Jump | Tab 3: ESP         ║
+-- ╚══════════════════════════════════════════════════════════════╝
+
+local Players          = game:GetService("Players")
+local RunService       = game:GetService("RunService")
+local TeleportService  = game:GetService("TeleportService")
+local HttpService      = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer      = Players.LocalPlayer
+
+-- ══════════════════════════════════════
+--  STATE
+-- ══════════════════════════════════════
+local State = {
+    MenuOpen     = true,
+    ActiveTab    = 1,
+    SpeedOn      = false,
+    JumpOn       = false,
+    ESPOn        = false,
+    HopRunning   = false,
+    SpeedVal     = 50,
+    JumpVal      = 80,
+    MinPlayers   = 1,
+    MaxPlayers   = 3,
+    ESPLabels    = {},
+}
+
+-- ══════════════════════════════════════
+--  COLORS
+-- ══════════════════════════════════════
+local C = {
+    BG       = Color3.fromRGB(10, 10, 18),
+    Panel    = Color3.fromRGB(18, 18, 30),
+    Card     = Color3.fromRGB(24, 24, 40),
+    Accent   = Color3.fromRGB(110, 70, 240),
+    Accent2  = Color3.fromRGB(70, 190, 255),
+    Gold     = Color3.fromRGB(255, 210, 60),
+    ON       = Color3.fromRGB(60, 230, 130),
+    OFF      = Color3.fromRGB(230, 65, 65),
+    Text     = Color3.fromRGB(235, 235, 255),
+    Sub      = Color3.fromRGB(155, 155, 205),
+    Border   = Color3.fromRGB(80, 55, 160),
+    TabOn    = Color3.fromRGB(110, 70, 240),
+    TabOff   = Color3.fromRGB(28, 28, 48),
+}
+
+-- ══════════════════════════════════════
+--  SCREEN GUI
+-- ══════════════════════════════════════
+local SG = Instance.new("ScreenGui")
+SG.Name            = "VIP_BLOXFRUIT"
+SG.ResetOnSpawn    = false
+SG.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
+SG.IgnoreGuiInset  = true
+SG.Parent          = (pcall(function() return game:GetService("CoreGui") end))
+                     and game:GetService("CoreGui") or LocalPlayer.PlayerGui
+
+-- ══════════════════════════════════════
+--  HELPERS
+-- ══════════════════════════════════════
+local function corner(p, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r or 8)
+    c.Parent = p
+    return c
+end
+
+local function stroke(p, col, thick)
+    local s = Instance.new("UIStroke")
+    s.Color     = col or C.Border
+    s.Thickness = thick or 1.5
+    s.Parent    = p
+    return s
+end
+
+local function gradient(p, c0, c1, rot)
+    local g = Instance.new("UIGradient")
+    g.Color    = ColorSequence.new(c0, c1)
+    g.Rotation = rot or 90
+    g.Parent   = p
+    return g
+end
+
+local function shadow(parent)
+    local sh = Instance.new("ImageLabel")
+    sh.Name               = "Shadow"
+    sh.AnchorPoint        = Vector2.new(0.5, 0.5)
+    sh.BackgroundTransparency = 1
+    sh.Position           = UDim2.new(0.5, 0, 0.5, 6)
+    sh.Size               = UDim2.new(1, 30, 1, 30)
+    sh.ZIndex             = parent.ZIndex - 1
+    sh.Image              = "rbxassetid://6014261993"
+    sh.ImageColor3        = Color3.new(0, 0, 0)
+    sh.ImageTransparency  = 0.5
+    sh.ScaleType          = Enum.ScaleType.Slice
+    sh.SliceCenter        = Rect.new(49, 49, 450, 450)
+    sh.Parent             = parent
+    return sh
+end
+
+-- Tween helper
+local TweenService = game:GetService("TweenService")
+local function tween(obj, props, t)
+    TweenService:Create(obj, TweenInfo.new(t or 0.2, Enum.EasingStyle.Quad), props):Play()
+end
+
+-- ══════════════════════════════════════
+--  OPEN/CLOSE BUTTON (luôn hiện)
+-- ══════════════════════════════════════
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name              = "ToggleBtn"
+ToggleBtn.Size              = UDim2.new(0, 48, 0, 48)
+ToggleBtn.Position          = UDim2.new(0, 16, 0.5, -24)
+ToggleBtn.BackgroundColor3  = C.Accent
+ToggleBtn.TextColor3        = Color3.new(1,1,1)
+ToggleBtn.Text              = "☰"
+ToggleBtn.TextSize          = 22
+ToggleBtn.Font              = Enum.Font.GothamBold
+ToggleBtn.ZIndex            = 20
+ToggleBtn.Parent            = SG
+corner(ToggleBtn, 14)
+stroke(ToggleBtn, C.Gold, 2)
+shadow(ToggleBtn)
+
+-- ══════════════════════════════════════
+--  MAIN WINDOW
+-- ══════════════════════════════════════
+local Main = Instance.new("Frame")
+Main.Name              = "Main"
+Main.Size              = UDim2.new(0, 380, 0, 480)
+Main.Position          = UDim2.new(0.5, -190, 0.5, -240)
+Main.BackgroundColor3  = C.BG
+Main.ClipsDescendants  = true
+Main.ZIndex            = 10
+Main.Parent            = SG
+corner(Main, 14)
+stroke(Main, C.Border, 2)
+shadow(Main)
+
+-- Header gradient bar
+local HeaderBar = Instance.new("Frame")
+HeaderBar.Size             = UDim2.new(1, 0, 0, 52)
+HeaderBar.BackgroundColor3 = C.Accent
+HeaderBar.Parent           = Main
+corner(HeaderBar, 14)
+gradient(HeaderBar,
+    Color3.fromRGB(110,70,240),
+    Color3.fromRGB(70,190,255), 135)
+
+-- Chỉ bo góc trên
+local HeaderFix = Instance.new("Frame")
+HeaderFix.Size             = UDim2.new(1,0,0,20)
+HeaderFix.Position         = UDim2.new(0,0,1,-10)
+HeaderFix.BackgroundColor3 = C.Accent
+HeaderFix.BorderSizePixel  = 0
+HeaderFix.Parent           = HeaderBar
+gradient(HeaderFix,
+    Color3.fromRGB(110,70,240),
+    Color3.fromRGB(70,190,255), 135)
+
+-- Title
+local TitleLbl = Instance.new("TextLabel")
+TitleLbl.Text             = "🌟 VIP MENU  |  Blox Fruit"
+TitleLbl.Size             = UDim2.new(1,-50,1,0)
+TitleLbl.Position         = UDim2.new(0,14,0,0)
+TitleLbl.BackgroundTransparency = 1
+TitleLbl.TextColor3       = Color3.new(1,1,1)
+TitleLbl.TextSize         = 15
+TitleLbl.Font             = Enum.Font.GothamBold
+TitleLbl.TextXAlignment   = Enum.TextXAlignment.Left
+TitleLbl.ZIndex           = 12
+TitleLbl.Parent           = HeaderBar
+
+-- Version badge
+local VerBadge = Instance.new("TextLabel")
+VerBadge.Text             = "v3.0"
+VerBadge.Size             = UDim2.new(0,40,0,20)
+VerBadge.Position         = UDim2.new(1,-50,0.5,-10)
+VerBadge.BackgroundColor3 = Color3.fromRGB(255,210,60)
+VerBadge.TextColor3       = Color3.fromRGB(20,20,20)
+VerBadge.TextSize         = 10
+VerBadge.Font             = Enum.Font.GothamBold
+VerBadge.ZIndex           = 13
+VerBadge.Parent           = HeaderBar
+corner(VerBadge, 5)
+
+-- FPS Counter
+local FPSLabel = Instance.new("TextLabel")
+FPSLabel.Text             = "FPS: --"
+FPSLabel.Size             = UDim2.new(0,90,0,22)
+FPSLabel.Position         = UDim2.new(0,14,0,54)
+FPSLabel.BackgroundColor3 = C.Card
+FPSLabel.TextColor3       = C.ON
+FPSLabel.TextSize         = 11
+FPSLabel.Font             = Enum.Font.GothamBold
+FPSLabel.TextXAlignment   = Enum.TextXAlignment.Center
+FPSLabel.ZIndex           = 12
+FPSLabel.Parent           = Main
+corner(FPSLabel, 5)
+stroke(FPSLabel, C.Border, 1)
+
+-- Ping Counter
+local PingLabel = Instance.new("TextLabel")
+PingLabel.Text            = "Ping: --"
+PingLabel.Size            = UDim2.new(0,90,0,22)
+PingLabel.Position        = UDim2.new(0,110,0,54)
+PingLabel.BackgroundColor3 = C.Card
+PingLabel.TextColor3      = C.Accent2
+PingLabel.TextSize        = 11
+PingLabel.Font            = Enum.Font.GothamBold
+PingLabel.TextXAlignment  = Enum.TextXAlignment.Center
+PingLabel.ZIndex          = 12
+PingLabel.Parent          = Main
+corner(PingLabel, 5)
+stroke(PingLabel, C.Border, 1)
+
+-- Players online
+local PlayersLabel = Instance.new("TextLabel")
+PlayersLabel.Text           = "👥 --/-- Players"
+PlayersLabel.Size           = UDim2.new(0,130,0,22)
+PlayersLabel.Position       = UDim2.new(1,-144,0,54)
+PlayersLabel.BackgroundColor3 = C.Card
+PlayersLabel.TextColor3     = C.Gold
+PlayersLabel.TextSize       = 11
+PlayersLabel.Font           = Enum.Font.GothamBold
+PlayersLabel.TextXAlignment = Enum.TextXAlignment.Center
+PlayersLabel.ZIndex         = 12
+PlayersLabel.Parent         = Main
+corner(PlayersLabel, 5)
+stroke(PlayersLabel, C.Border, 1)
+
+-- ══════════════════════════════════════
+--  TAB BAR
+-- ══════════════════════════════════════
+local TabBar = Instance.new("Frame")
+TabBar.Size             = UDim2.new(1,-20,0,34)
+TabBar.Position         = UDim2.new(0,10,0,84)
+TabBar.BackgroundColor3 = C.Panel
+TabBar.ZIndex           = 12
+TabBar.Parent           = Main
+corner(TabBar, 8)
+stroke(TabBar, C.Border, 1)
+
+local UIListLayout_Tab = Instance.new("UIListLayout")
+UIListLayout_Tab.FillDirection  = Enum.FillDirection.Horizontal
+UIListLayout_Tab.SortOrder      = Enum.SortOrder.LayoutOrder
+UIListLayout_Tab.Padding        = UDim.new(0,3)
+UIListLayout_Tab.VerticalAlignment = Enum.VerticalAlignment.Center
+UIListLayout_Tab.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout_Tab.Parent         = TabBar
+
+local TabButtons = {}
+local TabNames   = {"🌐 Server Hop", "⚡ Player", "👁 ESP"}
+
+for i, name in ipairs(TabNames) do
+    local tb = Instance.new("TextButton")
+    tb.Text              = name
+    tb.Size              = UDim2.new(0, 110, 0, 28)
+    tb.BackgroundColor3  = i == 1 and C.TabOn or C.TabOff
+    tb.TextColor3        = i == 1 and Color3.new(1,1,1) or C.Sub
+    tb.TextSize          = 11
+    tb.Font              = Enum.Font.GothamBold
+    tb.AutoButtonColor   = false
+    tb.LayoutOrder       = i
+    tb.ZIndex            = 13
+    tb.Parent            = TabBar
+    corner(tb, 6)
+    TabButtons[i] = tb
+end
+
+-- ══════════════════════════════════════
+--  CONTENT AREA
+-- ══════════════════════════════════════
+local ContentArea = Instance.new("Frame")
+ContentArea.Size             = UDim2.new(1,-20,1,-132)
+ContentArea.Position         = UDim2.new(0,10,0,126)
+ContentArea.BackgroundTransparency = 1
+ContentArea.ClipsDescendants = true
+ContentArea.ZIndex           = 11
+ContentArea.Parent           = Main
+
+-- Helper: scroll frame per tab
+local function makeScrollFrame(parent)
+    local sf = Instance.new("ScrollingFrame")
+    sf.Size                  = UDim2.new(1,0,1,0)
+    sf.BackgroundTransparency = 1
+    sf.ScrollBarThickness    = 3
+    sf.ScrollBarImageColor3  = C.Accent
+    sf.CanvasSize            = UDim2.new(0,0,0,0)
+    sf.AutomaticCanvasSize   = Enum.AutomaticSize.Y
+    sf.Visible               = false
+    sf.ZIndex                = 12
+    sf.Parent                = parent
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding     = UDim.new(0,8)
+    layout.SortOrder   = Enum.SortOrder.LayoutOrder
+    layout.Parent      = sf
+
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop    = UDim.new(0,4)
+    pad.PaddingBottom = UDim.new(0,8)
+    pad.Parent        = sf
+
+    return sf
+end
+
+-- ══════════════════════════════════════
+--  SECTION HEADER helper
+-- ══════════════════════════════════════
+local function sectionHeader(parent, text, order)
+    local hdr = Instance.new("TextLabel")
+    hdr.Text             = text
+    hdr.Size             = UDim2.new(1,0,0,24)
+    hdr.BackgroundColor3 = C.Card
+    hdr.TextColor3       = C.Gold
+    hdr.TextSize         = 11
+    hdr.Font             = Enum.Font.GothamBold
+    hdr.TextXAlignment   = Enum.TextXAlignment.Left
+    hdr.LayoutOrder      = order or 0
+    hdr.ZIndex           = 13
+    hdr.Parent           = parent
+    corner(hdr, 5)
+    local pad = Instance.new("UIPadding")
+    pad.PaddingLeft = UDim.new(0,10)
+    pad.Parent      = hdr
+    return hdr
+end
+
+-- ══════════════════════════════════════
+--  TOGGLE ROW helper
+-- ══════════════════════════════════════
+local function makeToggle(parent, labelText, default, order, onToggle)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1,0,0,36)
+    row.BackgroundColor3 = C.Card
+    row.LayoutOrder      = order or 0
+    row.ZIndex           = 13
+    row.Parent           = parent
+    corner(row, 7)
+    stroke(row, C.Border, 1)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text             = labelText
+    lbl.Size             = UDim2.new(1,-60,1,0)
+    lbl.Position         = UDim2.new(0,12,0,0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3       = C.Text
+    lbl.TextSize         = 12
+    lbl.Font             = Enum.Font.Gotham
+    lbl.TextXAlignment   = Enum.TextXAlignment.Left
+    lbl.ZIndex           = 14
+    lbl.Parent           = row
+
+    local state = default or false
+
+    -- pill
+    local pill = Instance.new("Frame")
+    pill.Size             = UDim2.new(0,42,0,22)
+    pill.Position         = UDim2.new(1,-52,0.5,-11)
+    pill.BackgroundColor3 = state and C.ON or C.OFF
+    pill.ZIndex           = 14
+    pill.Parent           = row
+    corner(pill, 11)
+
+    local knob = Instance.new("Frame")
+    knob.Size             = UDim2.new(0,16,0,16)
+    knob.Position         = state and UDim2.new(1,-19,0.5,-8) or UDim2.new(0,3,0.5,-8)
+    knob.BackgroundColor3 = Color3.new(1,1,1)
+    knob.ZIndex           = 15
+    knob.Parent           = pill
+    corner(knob, 8)
+
+    local btn = Instance.new("TextButton")
+    btn.Size              = UDim2.new(1,0,1,0)
+    btn.BackgroundTransparency = 1
+    btn.Text              = ""
+    btn.ZIndex            = 16
+    btn.Parent            = row
+
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        tween(pill, {BackgroundColor3 = state and C.ON or C.OFF}, 0.15)
+        tween(knob, {Position = state and UDim2.new(1,-19,0.5,-8) or UDim2.new(0,3,0.5,-8)}, 0.15)
+        if onToggle then onToggle(state) end
+    end)
+
+    return row, function() return state end
+end
+
+-- ══════════════════════════════════════
+--  SLIDER helper
+-- ══════════════════════════════════════
+local function makeSlider(parent, labelText, minV, maxV, defaultV, order, onChange)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1,0,0,52)
+    row.BackgroundColor3 = C.Card
+    row.LayoutOrder      = order or 0
+    row.ZIndex           = 13
+    row.Parent           = parent
+    corner(row, 7)
+    stroke(row, C.Border, 1)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text             = labelText
+    lbl.Size             = UDim2.new(0.6,0,0,22)
+    lbl.Position         = UDim2.new(0,12,0,4)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3       = C.Text
+    lbl.TextSize         = 12
+    lbl.Font             = Enum.Font.Gotham
+    lbl.TextXAlignment   = Enum.TextXAlignment.Left
+    lbl.ZIndex           = 14
+    lbl.Parent           = row
+
+    local valLbl = Instance.new("TextLabel")
+    valLbl.Text          = tostring(defaultV)
+    valLbl.Size          = UDim2.new(0.35,0,0,22)
+    valLbl.Position      = UDim2.new(0.6,0,0,4)
+    valLbl.BackgroundTransparency = 1
+    valLbl.TextColor3    = C.Accent2
+    valLbl.TextSize      = 12
+    valLbl.Font          = Enum.Font.GothamBold
+    valLbl.TextXAlignment = Enum.TextXAlignment.Right
+    valLbl.ZIndex        = 14
+    valLbl.Parent        = row
+
+    local track = Instance.new("Frame")
+    track.Size           = UDim2.new(1,-24,0,6)
+    track.Position       = UDim2.new(0,12,0,32)
+    track.BackgroundColor3 = C.Panel
+    track.ZIndex         = 14
+    track.Parent         = row
+    corner(track, 3)
+
+    local fill = Instance.new("Frame")
+    local pct0 = (defaultV - minV) / (maxV - minV)
+    fill.Size            = UDim2.new(pct0, 0, 1, 0)
+    fill.BackgroundColor3 = C.Accent
+    fill.ZIndex          = 15
+    fill.Parent          = track
+    corner(fill, 3)
+    gradient(fill, C.Accent, C.Accent2, 0)
+
+    local handle = Instance.new("Frame")
+    handle.Size          = UDim2.new(0,14,0,14)
+    handle.AnchorPoint   = Vector2.new(0.5, 0.5)
+    handle.Position      = UDim2.new(pct0, 0, 0.5, 0)
+    handle.BackgroundColor3 = Color3.new(1,1,1)
+    handle.ZIndex        = 16
+    handle.Parent        = track
+    corner(handle, 7)
+
+    local dragging = false
+    local curVal   = defaultV
+
+    local function updateSlider(x)
+        local abs   = track.AbsolutePosition.X
+        local width = track.AbsoluteSize.X
+        local pct   = math.clamp((x - abs) / width, 0, 1)
+        curVal      = math.floor(minV + pct * (maxV - minV))
+        fill.Size   = UDim2.new(pct, 0, 1, 0)
+        handle.Position = UDim2.new(pct, 0, 0.5, 0)
+        valLbl.Text = tostring(curVal)
+        if onChange then onChange(curVal) end
+    end
+
+    handle.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or
+           i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging then
+            if i.UserInputType == Enum.UserInputType.MouseMovement or
+               i.UserInputType == Enum.UserInputType.Touch then
+                updateSlider(i.Position.X)
+            end
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or
+           i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    track.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            updateSlider(i.Position.X)
+        end
+    end)
+
+    return row
+end
+
+-- ══════════════════════════════════════
+--  TAB 1 – SERVER HOP
+-- ══════════════════════════════════════
+local Tab1 = makeScrollFrame(ContentArea)
+
+sectionHeader(Tab1, "⚙️  CÀI ĐẶT SERVER HOP", 1)
+
+-- Min/Max display
+local rangeCard = Instance.new("Frame")
+rangeCard.Size             = UDim2.new(1,0,0,54)
+rangeCard.BackgroundColor3 = C.Card
+rangeCard.LayoutOrder      = 2
+rangeCard.ZIndex           = 13
+rangeCard.Parent           = Tab1
+corner(rangeCard, 7)
+stroke(rangeCard, C.Border, 1)
+
+local rangeLbl = Instance.new("TextLabel")
+rangeLbl.Text             = "🎯  Tìm server có:  1 – 3  người"
+rangeLbl.Size             = UDim2.new(1,-20,0,28)
+rangeLbl.Position         = UDim2.new(0,12,0,4)
+rangeLbl.BackgroundTransparency = 1
+rangeLbl.TextColor3       = C.Gold
+rangeLbl.TextSize         = 13
+rangeLbl.Font             = Enum.Font.GothamBold
+rangeLbl.TextXAlignment   = Enum.TextXAlignment.Left
+rangeLbl.ZIndex           = 14
+rangeLbl.Parent           = rangeCard
+
+local rangeNote = Instance.new("TextLabel")
+rangeNote.Text             = "Server ít người → ít lag, ít bị kick, chơi lâu hơn"
+rangeNote.Size             = UDim2.new(1,-20,0,18)
+rangeNote.Position         = UDim2.new(0,12,0,30)
+rangeNote.BackgroundTransparency = 1
+rangeNote.TextColor3       = C.Sub
+rangeNote.TextSize         = 10
+rangeNote.Font             = Enum.Font.Gotham
+rangeNote.TextXAlignment   = Enum.TextXAlignment.Left
+rangeNote.ZIndex           = 14
+rangeNote.Parent           = rangeCard
+
+-- Status card
+local statusCard = Instance.new("Frame")
+statusCard.Size             = UDim2.new(1,0,0,42)
+statusCard.BackgroundColor3 = C.Panel
+statusCard.LayoutOrder      = 3
+statusCard.ZIndex           = 13
+statusCard.Parent           = Tab1
+corner(statusCard, 7)
+stroke(statusCard, C.Border, 1)
+
+local statusLbl = Instance.new("TextLabel")
+statusLbl.Text             = "🔍  Trạng thái:  Chờ bắt đầu..."
+statusLbl.Size             = UDim2.new(1,-20,1,0)
+statusLbl.Position         = UDim2.new(0,12,0,0)
+statusLbl.BackgroundTransparency = 1
+statusLbl.TextColor3       = C.Sub
+statusLbl.TextSize         = 12
+statusLbl.Font             = Enum.Font.Gotham
+statusLbl.TextXAlignment   = Enum.TextXAlignment.Left
+statusLbl.ZIndex           = 14
+statusLbl.Parent           = statusCard
+
+-- Hop Button
+local hopBtn = Instance.new("TextButton")
+hopBtn.Text             = "🚀  BẮT ĐẦU SERVER HOP"
+hopBtn.Size             = UDim2.new(1,0,0,44)
+hopBtn.BackgroundColor3 = C.Accent
+hopBtn.TextColor3       = Color3.new(1,1,1)
+hopBtn.TextSize         = 13
+hopBtn.Font             = Enum.Font.GothamBold
+hopBtn.AutoButtonColor  = false
+hopBtn.LayoutOrder      = 4
+hopBtn.ZIndex           = 13
+hopBtn.Parent           = Tab1
+corner(hopBtn, 8)
+gradient(hopBtn,
+    Color3.fromRGB(110,70,240),
+    Color3.fromRGB(70,190,255), 135)
+
+hopBtn.MouseEnter:Connect(function()
+    tween(hopBtn, {BackgroundColor3 = Color3.fromRGB(80,50,180)}, 0.15)
+end)
+hopBtn.MouseLeave:Connect(function()
+    tween(hopBtn, {BackgroundColor3 = C.Accent}, 0.15)
+end)
+
+-- Stop Button
+local stopBtn = Instance.new("TextButton")
+stopBtn.Text             = "⛔  DỪNG HOP"
+stopBtn.Size             = UDim2.new(1,0,0,36)
+stopBtn.BackgroundColor3 = C.OFF
+stopBtn.TextColor3       = Color3.new(1,1,1)
+stopBtn.TextSize         = 12
+stopBtn.Font             = Enum.Font.GothamBold
+stopBtn.AutoButtonColor  = false
+stopBtn.LayoutOrder      = 5
+stopBtn.ZIndex           = 13
+stopBtn.Parent           = Tab1
+corner(stopBtn, 8)
+
+stopBtn.MouseEnter:Connect(function()
+    tween(stopBtn, {BackgroundColor3 = Color3.fromRGB(180,40,40)}, 0.15)
+end)
+stopBtn.MouseLeave:Connect(function()
+    tween(stopBtn, {BackgroundColor3 = C.OFF}, 0.15)
+end)
+
+sectionHeader(Tab1, "ℹ️  THÔNG TIN SERVER HIỆN TẠI", 6)
+
+local infoCard = Instance.new("Frame")
+infoCard.Size             = UDim2.new(1,0,0,80)
+infoCard.BackgroundColor3 = C.Card
+infoCard.LayoutOrder      = 7
+infoCard.ZIndex           = 13
+infoCard.Parent           = Tab1
+corner(infoCard, 7)
+stroke(infoCard, C.Border, 1)
+
+local function infoLine(parent, text, yPos, color)
+    local l = Instance.new("TextLabel")
+    l.Text              = text
+    l.Size              = UDim2.new(1,-20,0,18)
+    l.Position          = UDim2.new(0,12,0,yPos)
+    l.BackgroundTransparency = 1
+    l.TextColor3        = color or C.Text
+    l.TextSize          = 11
+    l.Font              = Enum.Font.Gotham
+    l.TextXAlignment    = Enum.TextXAlignment.Left
+    l.ZIndex            = 14
+    l.Parent            = parent
+    return l
+end
+
+local infoJobId  = infoLine(infoCard, "📌 Job ID: " .. tostring(game.JobId):sub(1,20) .. "...", 6,  C.Sub)
+local infoPlCnt  = infoLine(infoCard, "👥 Người chơi: " .. #Players:GetPlayers() .. " người", 28, C.Accent2)
+local infoPlace  = infoLine(infoCard, "🗺  Place ID: " .. tostring(game.PlaceId),               50, C.Sub)
+
+-- ══════════════════════════════════════
+-- SERVER HOP LOGIC
+-- ══════════════════════════════════════
+local function doServerHop()
+    if State.HopRunning then return end
+    State.HopRunning = true
+    hopBtn.Text      = "⏳  Đang tìm server..."
+    statusLbl.TextColor3 = C.Gold
+    statusLbl.Text   = "🔍  Đang quét server 1-3 người..."
+
+    local placeId = game.PlaceId
+    local cursor  = ""
+    local found   = false
+    local tries   = 0
+    local maxTries = 30
+
+    -- Hàm lấy danh sách server qua GetServerList
+    local function getServers(cur)
+        local ok, result = pcall(function()
+            return HttpService:JSONDecode(
+                game:HttpGet(
+                    "https://games.roblox.com/v1/games/" ..
+                    placeId ..
+                    "/servers/Public?limit=100" ..
+                    (cur ~= "" and ("&cursor=" .. cur) or "")
+                )
+            )
+        end)
+        if ok and result then return result end
+        return nil
+    end
+
+    local co = coroutine.create(function()
+        while State.HopRunning and not found and tries < maxTries do
+            tries = tries + 1
+            statusLbl.Text = "🔍  Đang quét... (lần " .. tries .. "/" .. maxTries .. ")"
+
+            local data = getServers(cursor)
+            if data and data.data then
+                for _, sv in ipairs(data.data) do
+                    local playing = sv.playing or 0
+                    local maxP    = sv.maxPlayers or 0
+
+                    if playing >= State.MinPlayers and playing <= State.MaxPlayers
+                       and sv.id ~= game.JobId then
+
+                        statusLbl.TextColor3 = C.ON
+                        statusLbl.Text = "✅  Tìm thấy! Server " .. playing .. "/" .. maxP .. " người → Đang chuyển..."
+                        found = true
+
+                        task.wait(1.2)
+                        local ok2, err = pcall(function()
+                            TeleportService:TeleportToPlaceInstance(placeId, sv.id, LocalPlayer)
+                        end)
+                        if not ok2 then
+                            statusLbl.TextColor3 = C.OFF
+                            statusLbl.Text = "❌  Lỗi teleport: " .. tostring(err)
+                            found = false
+                        end
+                        break
+                    end
+                end
+
+                if data.nextPageCursor and data.nextPageCursor ~= "" then
+                    cursor = data.nextPageCursor
+                else
+                    cursor = ""
+                end
+            end
+
+            task.wait(2)
+        end
+
+        if not found then
+            statusLbl.TextColor3 = C.OFF
+            statusLbl.Text = "❌  Không tìm thấy server phù hợp. Thử lại!"
+        end
+
+        State.HopRunning = false
+        hopBtn.Text = "🚀  BẮT ĐẦU SERVER HOP"
+    end)
+
+    coroutine.resume(co)
+end
+
+hopBtn.MouseButton1Click:Connect(doServerHop)
+stopBtn.MouseButton1Click:Connect(function()
+    State.HopRunning = false
+    hopBtn.Text      = "🚀  BẮT ĐẦU SERVER HOP"
+    statusLbl.TextColor3 = C.Sub
+    statusLbl.Text   = "⛔  Đã dừng hop."
+end)
+
+-- ══════════════════════════════════════
+--  TAB 2 – SPEED / JUMP
+-- ══════════════════════════════════════
+local Tab2 = makeScrollFrame(ContentArea)
+
+sectionHeader(Tab2, "⚡  TỐC ĐỘ DI CHUYỂN", 1)
+
+makeSlider(Tab2, "Walk Speed", 16, 300, 50, 2, function(v)
+    State.SpeedVal = v
+    local char = LocalPlayer.Character
+    if char and State.SpeedOn then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = v end
+    end
+end)
+
+makeToggle(Tab2, "🏃  Bật Speed", false, 3, function(on)
+    State.SpeedOn = on
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = on and State.SpeedVal or 16
+        end
+    end
+end)
+
+sectionHeader(Tab2, "🦘  NHẢY", 4)
+
+makeSlider(Tab2, "Jump Power", 50, 500, 80, 5, function(v)
+    State.JumpVal = v
+    local char = LocalPlayer.Character
+    if char and State.JumpOn then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.JumpPower = v end
+    end
+end)
+
+makeToggle(Tab2, "🦘  Bật Jump Boost", false, 6, function(on)
+    State.JumpOn = on
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.JumpPower = on and State.JumpVal or 50
+        end
+    end
+end)
+
+sectionHeader(Tab2, "📍  ĐỊNH VỊ NHÂN VẬT", 7)
+
+local posCard = Instance.new("Frame")
+posCard.Size             = UDim2.new(1,0,0,60)
+posCard.BackgroundColor3 = C.Card
+posCard.LayoutOrder      = 8
+posCard.ZIndex           = 13
+posCard.Parent           = Tab2
+corner(posCard, 7)
+stroke(posCard, C.Border, 1)
+
+local posX = infoLine(posCard, "X: --", 4,  C.Accent2)
+local posY = infoLine(posCard, "Y: --", 22, C.Gold)
+local posZ = infoLine(posCard, "Z: --", 40, C.ON)
+
+-- Apply khi character respawn
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if hum then
+        if State.SpeedOn then hum.WalkSpeed = State.SpeedVal end
+        if State.JumpOn  then hum.JumpPower = State.JumpVal  end
+    end
+end)
+
+-- ══════════════════════════════════════
+--  TAB 3 – ESP PLAYER
+-- ══════════════════════════════════════
+local Tab3 = makeScrollFrame(ContentArea)
+
+sectionHeader(Tab3, "👁  ESP PLAYER", 1)
+
+local espNote = Instance.new("TextLabel")
+espNote.Text             = "Hiển thị tên player trên đầu nhân vật trong game"
+espNote.Size             = UDim2.new(1,0,0,30)
+espNote.BackgroundColor3 = C.Card
+espNote.TextColor3       = C.Sub
+espNote.TextSize         = 11
+espNote.Font             = Enum.Font.Gotham
+espNote.TextXAlignment   = Enum.TextXAlignment.Center
+espNote.LayoutOrder      = 2
+espNote.ZIndex           = 13
+espNote.Parent           = Tab3
+corner(espNote, 6)
+
+makeToggle(Tab3, "👁  Bật ESP Tên Player", false, 3, function(on)
+    State.ESPOn = on
+    if not on then
+        for _, lbl in pairs(State.ESPLabels) do
+            if lbl and lbl.Parent then lbl:Destroy() end
+        end
+        State.ESPLabels = {}
+    end
+end)
+
+sectionHeader(Tab3, "📋  DANH SÁCH PLAYER", 4)
+
+local playerListFrame = Instance.new("Frame")
+playerListFrame.Size             = UDim2.new(1,0,0,0)
+playerListFrame.AutomaticSize    = Enum.AutomaticSize.Y
+playerListFrame.BackgroundColor3 = C.Card
+playerListFrame.LayoutOrder      = 5
+playerListFrame.ZIndex           = 13
+playerListFrame.Parent           = Tab3
+corner(playerListFrame, 7)
+stroke(playerListFrame, C.Border, 1)
+
+local plLayout = Instance.new("UIListLayout")
+plLayout.Padding   = UDim.new(0, 2)
+plLayout.SortOrder = Enum.SortOrder.LayoutOrder
+plLayout.Parent    = playerListFrame
+
+local plPad = Instance.new("UIPadding")
+plPad.PaddingTop    = UDim.new(0,6)
+plPad.PaddingBottom = UDim.new(0,6)
+plPad.Parent        = playerListFrame
+
+local function refreshPlayerList()
+    for _, c in ipairs(playerListFrame:GetChildren()) do
+        if c:IsA("Frame") or c:IsA("TextLabel") then c:Destroy() end
+    end
+    for i, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local row = Instance.new("Frame")
+            row.Size             = UDim2.new(1,-12,0,26)
+            row.BackgroundColor3 = C.Panel
+            row.LayoutOrder      = i
+            row.ZIndex           = 14
+            row.Parent           = playerListFrame
+            corner(row, 5)
+
+            local dot = Instance.new("Frame")
+            dot.Size             = UDim2.new(0,8,0,8)
+            dot.Position         = UDim2.new(0,8,0.5,-4)
+            dot.BackgroundColor3 = C.ON
+            dot.ZIndex           = 15
+            dot.Parent           = row
+            corner(dot, 4)
+
+            local nameLbl = Instance.new("TextLabel")
+            nameLbl.Text             = p.Name
+            nameLbl.Size             = UDim2.new(1,-28,1,0)
+            nameLbl.Position         = UDim2.new(0,24,0,0)
+            nameLbl.BackgroundTransparency = 1
+            nameLbl.TextColor3       = C.Text
+            nameLbl.TextSize         = 11
+            nameLbl.Font             = Enum.Font.Gotham
+            nameLbl.TextXAlignment   = Enum.TextXAlignment.Left
+            nameLbl.ZIndex           = 15
+            nameLbl.Parent           = row
+        end
+    end
+end
+
+refreshPlayerList()
+Players.PlayerAdded:Connect(refreshPlayerList)
+Players.PlayerRemoving:Connect(function() task.wait(0.5) refreshPlayerList() end)
+
+-- ══════════════════════════════════════
+--  ESP LOGIC (BillboardGui)
+-- ══════════════════════════════════════
+local function addESP(player)
+    local function attachLabel()
+        local char = player.Character
+        if not char then return end
+        local head = char:FindFirstChild("Head")
+        if not head then return end
+
+        -- Xoá cũ
+        local old = head:FindFirstChild("ESP_VIP")
+        if old then old:Destroy() end
+
+        local bb = Instance.new("BillboardGui")
+        bb.Name            = "ESP_VIP"
+        bb.Size            = UDim2.new(0,80,0,24)
+        bb.StudsOffset     = Vector3.new(0, 2.5, 0)
+        bb.AlwaysOnTop     = true
+        bb.ResetOnSpawn    = false
+        bb.Parent          = head
+
+        local bg = Instance.new("Frame")
+        bg.Size            = UDim2.new(1,0,1,0)
+        bg.BackgroundColor3 = Color3.fromRGB(10,10,18)
+        bg.BackgroundTransparency = 0.35
+        bg.BorderSizePixel = 0
+        bg.Parent          = bb
+        corner(bg, 4)
+        stroke(bg, C.Accent, 1)
+
+        local nl = Instance.new("TextLabel")
+        nl.Text            = player.Name
+        nl.Size            = UDim2.new(1,0,1,0)
+        nl.BackgroundTransparency = 1
+        nl.TextColor3      = C.Accent2
+        nl.TextSize        = 11
+        nl.Font            = Enum.Font.GothamBold
+        nl.TextXAlignment  = Enum.TextXAlignment.Center
+        nl.Parent          = bg
+
+        State.ESPLabels[player.UserId] = bb
+    end
+
+    attachLabel()
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        if State.ESPOn then attachLabel() end
+    end)
+end
+
+local function removeESP(player)
+    local lbl = State.ESPLabels[player.UserId]
+    if lbl and lbl.Parent then lbl:Destroy() end
+    State.ESPLabels[player.UserId] = nil
+end
+
+-- ══════════════════════════════════════
+--  TAB SWITCHING
+-- ══════════════════════════════════════
+local Tabs = {Tab1, Tab2, Tab3}
+
+local function switchTab(idx)
+    State.ActiveTab = idx
+    for i, t in ipairs(Tabs) do
+        t.Visible = (i == idx)
+    end
+    for i, tb in ipairs(TabButtons) do
+        local active = (i == idx)
+        tween(tb, {
+            BackgroundColor3 = active and C.TabOn or C.TabOff,
+            TextColor3       = active and Color3.new(1,1,1) or C.Sub,
+        }, 0.15)
+    end
+end
+
+for i, tb in ipairs(TabButtons) do
+    tb.MouseButton1Click:Connect(function() switchTab(i) end)
+end
+
+switchTab(1)
+
+-- ══════════════════════════════════════
+--  DRAGGABLE WINDOW
+-- ══════════════════════════════════════
+local dragging, dragStart, startPos = false, nil, nil
+
+local function initDrag(obj)
+    obj.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or
+           inp.UserInputType == Enum.UserInputType.Touch then
+            dragging  = true
+            dragStart = inp.Position
+            startPos  = Main.Position
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(inp)
+        if dragging then
+            if inp.UserInputType == Enum.UserInputType.MouseMovement or
+               inp.UserInputType == Enum.UserInputType.Touch then
+                local delta = inp.Position - dragStart
+                Main.Position = UDim2.new(
+                    startPos.X.Scale,
+                    startPos.X.Offset + delta.X,
+                    startPos.Y.Scale,
+                    startPos.Y.Offset + delta.Y
+                )
+            end
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or
+           inp.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+initDrag(HeaderBar)
+
+-- ══════════════════════════════════════
+--  OPEN / CLOSE MENU
+-- ══════════════════════════════════════
+ToggleBtn.MouseButton1Click:Connect(function()
+    State.MenuOpen = not State.MenuOpen
+    if State.MenuOpen then
+        Main.Visible = true
+        tween(Main, {Size = UDim2.new(0,380,0,480)}, 0.2)
+        ToggleBtn.Text = "☰"
+    else
+        tween(Main, {Size = UDim2.new(0,380,0,0)}, 0.2)
+        task.delay(0.22, function() Main.Visible = false end)
+        ToggleBtn.Text = "▶"
+    end
+end)
+
+-- ══════════════════════════════════════
+--  RUNTIME LOOP
+-- ══════════════════════════════════════
+local lastFPS, frameCount, frameTimer = 60, 0, 0
+local lastPing = 0
+
+RunService.Heartbeat:Connect(function(dt)
+    -- FPS
+    frameCount = frameCount + 1
+    frameTimer = frameTimer + dt
+    if frameTimer >= 0.5 then
+        local fps = math.floor(frameCount / frameTimer)
+        frameCount = 0
+        frameTimer = 0
+
+        local drop = lastFPS - fps
+        lastFPS    = fps
+
+        local col = fps >= 55 and C.FPSGood or fps >= 30 and C.FPSMid or C.FPSBad
+        FPSLabel.TextColor3 = col
+
+        if drop > 5 then
+            FPSLabel.Text = string.format("FPS: %d ▼%d", fps, drop)
+        else
+            FPSLabel.Text = string.format("FPS: %d", fps)
+        end
+    end
+
+    -- Ping
+    local stats = game:GetService("Stats")
+    if stats then
+        local ping = math.floor(stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+        if ping ~= lastPing then
+            lastPing = ping
+            PingLabel.TextColor3 = ping < 100 and C.ON or ping < 200 and C.Gold or C.OFF
+            PingLabel.Text = "Ping: " .. ping .. "ms"
+        end
+    end
+
+    -- Players online
+    local plCount = #Players:GetPlayers()
+    local maxPl   = Players.MaxPlayers
+    PlayersLabel.Text = "👥 " .. plCount .. "/" .. maxPl .. " Players"
+
+    -- Position
+    local char = LocalPlayer.Character
+    if char then
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            local p = root.Position
+            posX.Text = string.format("X: %.1f", p.X)
+            posY.Text = string.format("Y: %.1f", p.Y)
+            posZ.Text = string.format("Z: %.1f", p.Z)
+        end
+    end
+
+    -- ESP update
+    if State.ESPOn then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                if not State.ESPLabels[p.UserId] then
+                    addESP(p)
+                end
+            end
+        end
+    end
+end)
+
+-- Player events for ESP
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(1)
+        if State.ESPOn then addESP(p) end
+    end)
+end)
+
+Players.PlayerRemoving:Connect(removeESP)
+
+-- Initial ESP for existing players
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then
+        p.CharacterAdded:Connect(function()
+            task.wait(1)
+            if State.ESPOn then addESP(p) end
+        end)
+    end
+end
+
+print("✅ [VIP MENU] Đã load thành công! Nhấn ☰ để mở/đóng menu.")
